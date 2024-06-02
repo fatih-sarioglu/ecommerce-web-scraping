@@ -86,11 +86,38 @@ def get_product_links(driver):
 
     return [links, driver]
 
-def get_product_data(product_links""" , driver """):
+def get_product_data(product_links): # , driver
+
+    product_data = []
+
     for link in product_links:
         driver.get(link)
 
+        product = {}
+
+        # num_q, num_fav, prod_title, price, seller_info, photos
+        h1 = driver.find_element(By.CLASS_NAME, 'pr-new-br')
+        title = h1.find_element(By.XPATH, './/a').get_attribute('innerHTML') + " " + h1.find_element(By.XPATH, './/span').get_attribute('innerHTML')
         
+        num_q = driver.find_element(By.CLASS_NAME, 'answered-questions-count').get_attribute('innerHTML') # typecast to int
+        num_fav = driver.find_element(By.CLASS_NAME, 'favorite-count').get_attribute('innerHTML') # typecast to int
+        price = driver.find_element(By.CLASS_NAME, 'product-price-container').find_element(By.XPATH, './/div/div/div/div[2]/span').get_attribute('innerHTML')[:-3]
+        price_refined = price.replace('.', '')
+
+        seller_info_parent = driver.find_element(By.CLASS_NAME, 'seller-widget.widget')
+        seller_name = seller_info_parent.find_element(By.XPATH, './/[1][1]/div[1]/a').get_attribute('innerHTML')
+        seller_rating = seller_info_parent.find_element(By.XPATH, './/[1][1]/div[3]').get_attribute('innerHTML')
+        seller_follower_count = seller_info_parent.find_element(By.XPATH, './/[1][2]').get_attribute('innerHTML')
+        seller_follower_count_refined = seller_follower_count.replace('Takipçi', '')
+
+        
+
+
+
+        # overall_rating, num_each_rating, num_comments
+        # 5 and 1 star comments' content, thumbs_up, photos (max 100 from each rating)
+
+
 
 
     return
