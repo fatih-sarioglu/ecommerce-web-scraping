@@ -1,5 +1,3 @@
-import os
-
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
@@ -7,10 +5,12 @@ from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.relative_locator import locate_with
 from selenium.webdriver import ActionChains
+import requests
 import time
+import os
 
-service = Service(executable_path='chromedriver.exe')
-driver = webdriver.Chrome(service=service)
+# service = Service(executable_path='chromedriver.exe')
+# driver = webdriver.Chrome(service=service)
 
 # this function goes to trendyol.com and navigates to the laptops page and returns the driver to be used in another function
 def get_to_the_page():
@@ -86,46 +86,99 @@ def get_product_links(driver):
 
     return [links, driver]
 
-def get_product_data(product_links): # , driver
+def get_product_data(product_links, driver): # , driver
 
     product_data = []
+    product_id = 0
+
+    os.mkdir('Product_Photos')
 
     for link in product_links:
         driver.get(link)
 
-        product = {}
+        time.sleep(2)
+
+        driver.find_element(By.XPATH, '//*[@id="onetrust-accept-btn-handler"]').click()
+
+        time.sleep(3)
+
+        product = {'id': product_id}
 
         # num_q, num_fav, prod_title, price, seller_info, photos
+
         h1 = driver.find_element(By.CLASS_NAME, 'pr-new-br')
-        title = h1.find_element(By.XPATH, './/a').get_attribute('innerHTML') + " " + h1.find_element(By.XPATH, './/span').get_attribute('innerHTML')
+        product['title'] = h1.find_element(By.XPATH, './/a').get_attribute('innerHTML') + " " + h1.find_element(By.XPATH, './/span').get_attribute('innerHTML')
         
-        num_q = driver.find_element(By.CLASS_NAME, 'answered-questions-count').get_attribute('innerHTML') # typecast to int
-        num_fav = driver.find_element(By.CLASS_NAME, 'favorite-count').get_attribute('innerHTML') # typecast to int
-        price = driver.find_element(By.CLASS_NAME, 'product-price-container').find_element(By.XPATH, './/div/div/div/div[2]/span').get_attribute('innerHTML')[:-3]
-        price_refined = price.replace('.', '')
+        product['numberOfQuestions'] = driver.find_element(By.CLASS_NAME, 'answered-questions-count').get_attribute('innerHTML') # typecast to int
+        product['numberOfFavs'] = driver.find_element(By.CLASS_NAME, 'favorite-count').get_attribute('innerHTML') # typecast to int
+        price = driver.find_element(By.CLASS_NAME, 'product-price-container').find_element(By.CLASS_NAME, 'prc-dsc').get_attribute('innerHTML')[:-3]
+        product['price'] = price.replace('.', '')
 
-        seller_info_parent = driver.find_element(By.CLASS_NAME, 'seller-widget.widget')
-        seller_name = seller_info_parent.find_element(By.XPATH, './/[1][1]/div[1]/a').get_attribute('innerHTML')
-        seller_rating = seller_info_parent.find_element(By.XPATH, './/[1][1]/div[3]').get_attribute('innerHTML')
-        seller_follower_count = seller_info_parent.find_element(By.XPATH, './/[1][2]').get_attribute('innerHTML')
-        seller_follower_count_refined = seller_follower_count.replace('Takipçi', '')
-
+        # seller info
         
+        seller_info_parent = driver.find_element(By.CLASS_NAME, 'widget-title.product-seller-line')
+        seller_name = seller_info_parent.find_element(By.XPATH, './/div/div/div[1]/a').get_attribute('innerHTML')
+        seller_rating = seller_info_parent.find_element(By.CLASS_NAME, 'sl-pn').get_attribute('innerHTML')
+        #seller_follower_count = seller_info_parent.find_element(By.XPATH, './/[1][2]').get_attribute('innerHTML')
+        #seller_follower_count_refined = seller_follower_count.replace('Takipçi', '')
 
+        product['sellerInfo'] = {
+            'sellerName': seller_name,
+            'sellerRating': seller_rating,
+            #'sellerFollowers': seller_follower_count_refined
+        }
 
+        # product photos
+        next_button = driver.find_element(By.CLASS_NAME, 'gallery-icon-container.right')
+        image_parent = driver.find_element(By.CLASS_NAME, 'base-product-image')
+
+        image_sources = []
+        image_id = 0
+
+        os.mkdir(f'Product_Photos\\{product_id}')
+
+        product['photos'] = {}
+
+        actions = ActionChains(driver=driver)
+        actions.move_to_element(next_button).perform()
+
+        while (True):
+            time.sleep(0.3)
+            # if it's a video then pass this element
+            if (image_parent.find_element(By.XPATH, './/div').get_attribute('class') != 'gallery-video-container'):
+                # terminates the loop if it comes the the first photo again
+                src = image_parent.find_element(By.XPATH, './/div/img').get_attribute('src')
+                if(src in image_sources):
+                    break
+
+                image_sources.append(src)
+
+                with open(f"Product_Photos\\{product_id}\\{image_id}.jpg", 'wb') as f:
+                    img = requests.get(src)
+                    f.write(img.content)
+
+                product['photos'][f'image{image_id}'] = "Product_Photos\\" + str(product_id) + "\\" + str(image_id) + ".jpg"
+                image_id += 1
+
+            next_button.click()
+            
+
+        product_data.append(product)
+        product_id += 1
+
+        print(product_data[0])
 
         # overall_rating, num_each_rating, num_comments
         # 5 and 1 star comments' content, thumbs_up, photos (max 100 from each rating)
-
-
-
 
     return
 
 def to_jsonl():
     return
 
-driver = get_to_the_page()
-links, driver_new = get_product_links(driver=driver)
+service = Service(executable_path='chromedriver.exe')
+driver = webdriver.Chrome(service=service)
 
-print(links)
+links = ['https://www.trendyol.com/apple/macbook-air-m1-cip-8gb-256gb-ssd-macos-13-qhd-tasinabilir-bilgisayar-uzay-grisi-p-68042136']
+
+get_product_data(links, driver)
