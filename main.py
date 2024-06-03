@@ -6,7 +6,9 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.relative_locator import locate_with
 from selenium.webdriver import ActionChains
 import requests
+import random
 import time
+import json
 import os
 
 # service = Service(executable_path='chromedriver.exe')
@@ -91,21 +93,28 @@ def get_product_data(product_links, driver): # , driver
     product_data = []
     product_id = 0
 
+    random.shuffle(product_links)
+
     os.mkdir('Product_Photos')
 
     for link in product_links:
-        driver.get(link)
+        # random wait for undetectability
+        if((product_id + 1) % 20 == 0):
+            wait = wait = random.uniform(8, 15)
+        else:
+            wait = random.uniform(2, 4)  
+        time.sleep(wait)
 
+        driver.get(link)
         time.sleep(2)
 
+        # already done in first function, delete after testing
         driver.find_element(By.XPATH, '//*[@id="onetrust-accept-btn-handler"]').click()
-
         time.sleep(3)
 
         product = {'id': product_id}
 
         # num_q, num_fav, prod_title, price, seller_info, photos
-
         h1 = driver.find_element(By.CLASS_NAME, 'pr-new-br')
         product['title'] = h1.find_element(By.XPATH, './/a').get_attribute('innerHTML') + " " + h1.find_element(By.XPATH, './/span').get_attribute('innerHTML')
         
@@ -115,17 +124,13 @@ def get_product_data(product_links, driver): # , driver
         product['price'] = price.replace('.', '')
 
         # seller info
-        
         seller_info_parent = driver.find_element(By.CLASS_NAME, 'widget-title.product-seller-line')
         seller_name = seller_info_parent.find_element(By.XPATH, './/div/div/div[1]/a').get_attribute('innerHTML')
         seller_rating = seller_info_parent.find_element(By.CLASS_NAME, 'sl-pn').get_attribute('innerHTML')
-        #seller_follower_count = seller_info_parent.find_element(By.XPATH, './/[1][2]').get_attribute('innerHTML')
-        #seller_follower_count_refined = seller_follower_count.replace('Takipçi', '')
 
         product['sellerInfo'] = {
             'sellerName': seller_name,
             'sellerRating': seller_rating,
-            #'sellerFollowers': seller_follower_count_refined
         }
 
         # product photos
@@ -143,7 +148,7 @@ def get_product_data(product_links, driver): # , driver
         actions.move_to_element(next_button).perform()
 
         while (True):
-            time.sleep(0.3)
+            time.sleep(random.uniform(0.3, 0.5))
             # if it's a video then pass this element
             if (image_parent.find_element(By.XPATH, './/div').get_attribute('class') != 'gallery-video-container'):
                 # terminates the loop if it comes the the first photo again
@@ -153,23 +158,29 @@ def get_product_data(product_links, driver): # , driver
 
                 image_sources.append(src)
 
-                with open(f"Product_Photos\\{product_id}\\{image_id}.jpg", 'wb') as f:
+                path = f"Product_Photos\\{product_id}\\{image_id}.jpg"
+                with open(path, 'wb') as f:
                     img = requests.get(src)
                     f.write(img.content)
+                
+                product['photos'][f'image{image_id}'] = path
 
-                product['photos'][f'image{image_id}'] = "Product_Photos\\" + str(product_id) + "\\" + str(image_id) + ".jpg"
                 image_id += 1
 
             next_button.click()
             
+
+        # overall_rating, num_each_rating, num_comments
+        # 5 and 1 star comments' content, thumbs_up, photos (max 100 from each rating)
+
+
 
         product_data.append(product)
         product_id += 1
 
         print(product_data[0])
 
-        # overall_rating, num_each_rating, num_comments
-        # 5 and 1 star comments' content, thumbs_up, photos (max 100 from each rating)
+        
 
     return
 
@@ -179,6 +190,6 @@ def to_jsonl():
 service = Service(executable_path='chromedriver.exe')
 driver = webdriver.Chrome(service=service)
 
-links = ['https://www.trendyol.com/apple/macbook-air-m1-cip-8gb-256gb-ssd-macos-13-qhd-tasinabilir-bilgisayar-uzay-grisi-p-68042136']
+links = ['https://www.trendyol.com/acer/aspire3-intel-celeron-n4500-4gb-128gb-ssd-dos-15-6-gumus-dizustu-bilgisayar-acer-turkiye-garantili-p-656066934']
 
 get_product_data(links, driver)
