@@ -11,8 +11,8 @@ import time
 import json
 import os
 
-# service = Service(executable_path='chromedriver.exe')
-# driver = webdriver.Chrome(service=service)
+service = Service(executable_path='chromedriver.exe')
+driver = webdriver.Chrome(service=service)
 
 # this function goes to trendyol.com and navigates to the laptops page and returns the driver to be used in another function
 def get_to_the_page():
@@ -88,7 +88,8 @@ def get_product_links(driver):
 
     return [links, driver]
 
-def get_product_data(product_links, driver): # , driver
+# this functions gets to the each product's page and scrapes the data of each of them
+def get_product_data(product_links): # , driver
 
     product_data = []
     product_id = 0
@@ -118,10 +119,10 @@ def get_product_data(product_links, driver): # , driver
         h1 = driver.find_element(By.CLASS_NAME, 'pr-new-br')
         product['title'] = h1.find_element(By.XPATH, './/a').get_attribute('innerHTML') + " " + h1.find_element(By.XPATH, './/span').get_attribute('innerHTML')
         
-        product['numberOfQuestions'] = driver.find_element(By.CLASS_NAME, 'answered-questions-count').get_attribute('innerHTML') # typecast to int
-        product['numberOfFavs'] = driver.find_element(By.CLASS_NAME, 'favorite-count').get_attribute('innerHTML') # typecast to int
+        product['numberOfQuestions'] = int(driver.find_element(By.CLASS_NAME, 'answered-questions-count').get_attribute('innerHTML')) # typecast to int
+        product['numberOfFavs'] = int(driver.find_element(By.CLASS_NAME, 'favorite-count').get_attribute('innerHTML')) # typecast to int
         price = driver.find_element(By.CLASS_NAME, 'product-price-container').find_element(By.CLASS_NAME, 'prc-dsc').get_attribute('innerHTML')[:-3]
-        product['price'] = price.replace('.', '')
+        product['price'] = int(price.replace('.', ''))
 
         # seller info
         seller_info_parent = driver.find_element(By.CLASS_NAME, 'widget-title.product-seller-line')
@@ -130,7 +131,7 @@ def get_product_data(product_links, driver): # , driver
 
         product['sellerInfo'] = {
             'sellerName': seller_name,
-            'sellerRating': seller_rating,
+            'sellerRating': float(seller_rating)
         }
 
         # product photos
@@ -168,10 +169,40 @@ def get_product_data(product_links, driver): # , driver
                 image_id += 1
 
             next_button.click()
-            
-
+        
         # overall_rating, num_each_rating, num_comments
         # 5 and 1 star comments' content, thumbs_up, photos (max 100 from each rating)
+
+        # go to ratings page
+        driver.find_element(By.CLASS_NAME, 'rvw-cnt-tx').click()
+        time.sleep(random.uniform(2.5, 3.5))
+
+
+        product['overallRating'] = float(driver.find_element(By.CLASS_NAME, 'ps-ratings__count-text').get_attribute('innerHTML'))
+        product['numberOfComments'] = int(driver.find_element(By.XPATH,
+                                        '//*[@id="rating-and-review-app"]/div/div/div/div[1]/div/div[2]/div[2]/div[3]/div').get_attribute('innerHTML'))
+        
+        stars = driver.find_elements(By.CLASS_NAME, 'ps-stars__content')
+
+        for star, element in enumerate(stars, 1):
+            product['numberOfRatings'][f'{star}-star'] = element.find_element(By.XPATH, './/span').get_attribute('innerHTML')[1:-1]
+
+        # content, numberOFThumbsUp, photos
+        for i in [0, 4]:
+            comments = []
+            comment_id = 0
+
+            stars[i].click()
+
+            keep_scrolling = True
+
+            while keep_scrolling:
+
+                batch = 
+
+
+        
+
 
 
 
