@@ -34,7 +34,6 @@ for star, element in enumerate(stars, 1):
 
 print(product)
 
-
 # get the comment data for 1 and 5-star comments
 for i in [4]:
     comments = []
@@ -66,12 +65,15 @@ for i in [4]:
                 except NoSuchElementException:
                     content = element.find_element(By.CLASS_NAME, 'comment-text').find_element(By.TAG_NAME, 'p').get_attribute('innerHTML')
 
+                # save the content
                 comments.append(content)
                 print(content)
 
+                # get the number of thumbs up
                 num_thumbs_up = int(element.find_element(By.CLASS_NAME, 'tooltip-main').find_element(By.TAG_NAME, 'span').get_attribute('innerHTML')[1:-1])
                 print(num_thumbs_up)
 
+                # images that are uploaded by the customers are scraped here
                 small_images = element.find_elements(By.CLASS_NAME, 'item.review-image')
 
                 if (small_images):
@@ -100,13 +102,19 @@ for i in [4]:
                     keep_scrolling = False
                     print('yo')
                     break
-
+        
+        # keep scrolling for new comments to appear
         if (keep_scrolling):
             driver.find_element(By.TAG_NAME, 'body').send_keys(Keys.PAGE_DOWN)
             time.sleep(2)
 
+    # switch between filtering for 1-star and 5-star comments
     driver.execute_script("arguments[0].click();", stars[i])
 
     print(len(comments))
 
     time.sleep(1)
+
+
+
+

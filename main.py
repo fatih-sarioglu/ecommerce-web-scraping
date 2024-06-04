@@ -3,7 +3,7 @@ from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support import expected_conditions as EC
-from selenium.webdriver.support.relative_locator import locate_with
+from selenium.common.exceptions import NoSuchElementException
 from selenium.webdriver import ActionChains
 import requests
 import random
@@ -11,8 +11,8 @@ import time
 import json
 import os
 
-service = Service(executable_path='chromedriver.exe')
-driver = webdriver.Chrome(service=service)
+# service = Service(executable_path='chromedriver.exe')
+# driver = webdriver.Chrome(service=service)
 
 # this function goes to trendyol.com and navigates to the laptops page and returns the driver to be used in another function
 def get_to_the_page():
@@ -89,7 +89,7 @@ def get_product_links(driver):
     return [links, driver]
 
 # this functions gets to the each product's page and scrapes the data of each of them
-def get_product_data(product_links): # , driver
+def get_product_data(product_links, driver): # , driver
 
     product_data = []
     product_id = 0
@@ -141,9 +141,10 @@ def get_product_data(product_links): # , driver
         image_sources = []
         image_id = 0
 
-        os.mkdir(f'Product_Photos\\{product_id}')
+        os.mkdir(f'Product_Photos\\product_{product_id}')
+        os.mkdir(f'Product_Photos\\product_{product_id}\\Seller_Photos')
 
-        product['photos'] = {}
+        product['photos'] = []
 
         actions = ActionChains(driver=driver)
         actions.move_to_element(next_button).perform()
@@ -159,12 +160,12 @@ def get_product_data(product_links): # , driver
 
                 image_sources.append(src)
 
-                path = f"Product_Photos\\{product_id}\\{image_id}.jpg"
+                path = f"Product_Photos\\product_{product_id}\\Seller_Photos\\image_{image_id}.jpg"
                 with open(path, 'wb') as f:
                     img = requests.get(src)
                     f.write(img.content)
                 
-                product['photos'][f'image{image_id}'] = path
+                product['photos'].append(path)
 
                 image_id += 1
 
@@ -173,54 +174,136 @@ def get_product_data(product_links): # , driver
         # overall_rating, num_each_rating, num_comments
         # 5 and 1 star comments' content, thumbs_up, photos (max 100 from each rating)
 
-        # go to ratings page
+        # go to reviews page
         driver.find_element(By.CLASS_NAME, 'rvw-cnt-tx').click()
         time.sleep(random.uniform(2.5, 3.5))
 
-
         product['overallRating'] = float(driver.find_element(By.CLASS_NAME, 'ps-ratings__count-text').get_attribute('innerHTML'))
-        product['numberOfComments'] = int(driver.find_element(By.XPATH,
-                                        '//*[@id="rating-and-review-app"]/div/div/div/div[1]/div/div[2]/div[2]/div[3]/div').get_attribute('innerHTML'))
+        num_comments = driver.find_element(By.XPATH,
+                                        '//*[@id="rating-and-review-app"]/div/div/div/div[1]/div/div[2]/div[2]/div[3]/div').get_attribute('innerHTML')
+        product['numberOfComments'] = int(num_comments[:num_comments.find(' ')])
         
         stars = driver.find_elements(By.CLASS_NAME, 'ps-stars__content')
 
-        for star, element in enumerate(stars, 1):
-            product['numberOfRatings'][f'{star}-star'] = element.find_element(By.XPATH, './/span').get_attribute('innerHTML')[1:-1]
+        product['numberOfRatings'] = {}
 
-        # content, numberOFThumbsUp, photos
+        for star, element in enumerate(stars, 1):
+            product['numberOfRatings'][f'{star}-star'] = int(element.find_element(By.XPATH, './/span').get_attribute('innerHTML')[1:-1])
+
+        # get the comment data for 1 and 5-star comments
+        product['comments'] = {
+                '1StarComments': {},
+                '5StarComments': {}
+            }
+        
+        os.mkdir(f'Product_Photos\\product_{product_id}\\Comment_Photos')
+
+        comment_id = 0
         for i in [0, 4]:
             comments = []
-            comment_id = 0
 
-            stars[i].click()
+            actions = ActionChains(driver=driver)
+
+            driver.execute_script("arguments[0].click();", stars[i])
+
+            time.sleep(2)
 
             keep_scrolling = True
 
             while keep_scrolling:
 
-                batch = 
+                batch = driver.find_elements(By.CLASS_NAME, 'comment')
 
+                if (len(batch) > len(comments)):
+                    for element in batch[len(comments):]:
+                        comment = {'commentId':  comment_id}                        
 
-        
+                        # click read more if comment is long
+                        try:
+                            read_more_button = element.find_element(By.CLASS_NAME, 'i-dropdown-arrow')
+                            driver.execute_script("arguments[0].click();", read_more_button)
+                            time.sleep(0.2)
 
+                            content = driver.find_elements(By.CLASS_NAME, 'comment')[batch.index(element)].find_element(By.TAG_NAME, 'p').get_attribute('innerHTML')
+                        except NoSuchElementException:
+                            content = element.find_element(By.CLASS_NAME, 'comment-text').find_element(By.TAG_NAME, 'p').get_attribute('innerHTML')
 
+                        # save the content
+                        comments.append(content)
+                        comment['content'] = content
 
+                        # get the number of thumbs up
+                        num_thumbs_up = int(element.find_element(By.CLASS_NAME, 'tooltip-main').find_element(By.TAG_NAME, 'span').get_attribute('innerHTML')[1:-1])
+                        comment['numberOfThumbsUp'] = num_thumbs_up
+
+                        # images that are uploaded by the customers are scraped here
+                        small_images = element.find_elements(By.CLASS_NAME, 'item.review-image')
+
+                        if (len(small_images) > 0):
+                            os.mkdir(f'Product_Photos\\product_{product_id}\\Comment_Photos\\comment_{comment_id}')
+                            comment['photos'] = []
+
+                            actions.move_to_element(small_images[0]).click().perform()
+                            time.sleep(1)
+
+                            for j in range(len(small_images)):
+                                image_parent = driver.find_element(By.CLASS_NAME, 'react-transform-component.transform-component-module_content__uCDPE ')
+                                next_button = driver.find_element(By.CLASS_NAME, 'arrow.next')
+                                src = image_parent.find_element(By.XPATH, './/img').get_attribute('src')
+
+                                comment_photo_path = f'Product_Photos\\product_{product_id}\\Comment_Photos\\comment_{comment_id}\\image_{j}.jpg'
+                                with open(comment_photo_path, 'wb') as f:
+                                    img = requests.get(src)
+                                    f.write(img.content)
+                                
+                                comment['photos'].append(comment_photo_path)
+
+                                if (j != len(small_images)-1):
+                                    actions.move_to_element(next_button).click().perform()
+                                    time.sleep(random.uniform(0.5, 0.9))
+                                else:
+                                    driver.find_element(By.CLASS_NAME, 'ty-modal-content.ty-relative.modal-class').find_element(By.TAG_NAME, 'a').click()
+                                    time.sleep(0.3)
+                        
+                        product['comments'][f'{i+1}StarComments'][f'comment_{comment_id}'] = comment
+                        comment_id += 1
+
+                        if (len(comments) == product['numberOfRatings'][f'{i+1}-star'] or len(comments) == 15):
+                            keep_scrolling = False
+                            print('yo')
+                            break
+                
+                # keep scrolling for new comments to appear
+                if (keep_scrolling):
+                    driver.find_element(By.TAG_NAME, 'body').send_keys(Keys.PAGE_DOWN)
+                    time.sleep(2)
+
+            # switch between filtering for 1-star and 5-star comments
+            driver.execute_script("arguments[0].click();", stars[i])
+
+            time.sleep(1)
 
         product_data.append(product)
         product_id += 1
 
-        print(product_data[0])
+        with open('data.json', 'w', encoding='utf-8') as file:
+            json.dump(product_data[0], file, ensure_ascii=False)
 
-        
+    return product_data
 
-    return
+# this function outputs data to a .jsonl file
+def to_jsonl(data):
+    file = open('data.jsonl', 'w', encoding='utf-8')
+    for product in data:
+        json.dump(data[0], file, ensure_ascii=False)
 
-def to_jsonl():
     return
 
 service = Service(executable_path='chromedriver.exe')
 driver = webdriver.Chrome(service=service)
 
-links = ['https://www.trendyol.com/acer/aspire3-intel-celeron-n4500-4gb-128gb-ssd-dos-15-6-gumus-dizustu-bilgisayar-acer-turkiye-garantili-p-656066934']
+links = ['https://www.trendyol.com/huawei/matebook-d15-i5-1155g7-islemci-8gb-ram-512gb-ssd-15-6-inc-win-11-laptop-mistik-gumus-p-654281247?boutiqueId=61&merchantId=514600']
 
-get_product_data(links, driver)
+scraped_data = get_product_data(links, driver)
+
+to_jsonl(scraped_data)
