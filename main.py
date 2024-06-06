@@ -1,10 +1,11 @@
-from selenium import webdriver
-from selenium.webdriver.chrome.service import Service
-from selenium.webdriver.common.by import By
-from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import NoSuchElementException
+from selenium.webdriver.support.wait import WebDriverWait
+from selenium.webdriver.chrome.service import Service
+from selenium.webdriver.common.keys import Keys
+from selenium.webdriver.common.by import By
 from selenium.webdriver import ActionChains
+from selenium import webdriver
 import requests
 import random
 import time
@@ -25,36 +26,45 @@ def get_to_the_page():
 
     # get the page
     driver.get(url)
+    #time.sleep(2)
+
+    wait = WebDriverWait(driver, 10)
+    wait.until(EC.element_to_be_clickable((By.XPATH, '//*[@id="onetrust-accept-btn-handler"]'))).click()
 
     # accept the cookies
+    #driver.find_element(By.XPATH, '//*[@id="onetrust-accept-btn-handler"]').click()
     time.sleep(2)
-    driver.find_element(By.XPATH, '//*[@id="onetrust-accept-btn-handler"]').click()
 
     # hover over electronics tab and click computers
-    time.sleep(3)
     electronics = driver.find_element(By.XPATH, '//*[@id="navigation-wrapper"]/nav/ul/li[8]/a')
     computers = driver.find_element(By.XPATH, '//*[@id="sub-nav-5"]/div/div/div[5]/div/ul/li[1]/a')
 
     actions = ActionChains(driver=driver)
     actions.move_to_element(electronics).perform()
-    time.sleep(2)
+    time.sleep(0.2)
     actions.move_to_element(computers).click().perform()
+    # time.sleep(2)
 
     # click laptops option
-    time.sleep(2)
-    driver.find_element(By.XPATH, '//*[@id="sticky-aggregations"]/div/div[1]/div[2]/div/div/div[1]/div/a').click()
+    wait = WebDriverWait(driver, 10)
+    wait.until(EC.element_to_be_clickable((By.XPATH, '//*[@id="sticky-aggregations"]/div/div[1]/div[2]/div/div/div[1]/div/a'))).click()
 
-    time.sleep(3)
-    # driver.quit()
+    # click laptops option
+    # driver.find_element(By.XPATH, '//*[@id="sticky-aggregations"]/div/div[1]/div[2]/div/div/div[1]/div/a').click()
+    # time.sleep(2)
 
     return driver
 
 # this functions gets links of all the laptops that have more than 100 reviews and puts them into a list 
 def get_product_links(driver):
     # start with sorting products
-    driver.find_element(By.XPATH, '//*[@id="search-app"]/div/div[1]/div[2]/div[1]/div[2]/div/div/div').click()
-    time.sleep(0.5)
-    driver.find_element(By.XPATH, '//*[@id="search-app"]/div/div[1]/div[2]/div[1]/div[2]/div/ul/li[7]/span').click()
+    wait = WebDriverWait(driver, 10)
+    wait.until(EC.element_to_be_clickable((By.XPATH, '//*[@id="search-app"]/div/div[1]/div[2]/div[1]/div[2]/div/div/div'))).click()
+    #driver.find_element(By.XPATH, '//*[@id="search-app"]/div/div[1]/div[2]/div[1]/div[2]/div/div/div').click()
+    #time.sleep(0.1)
+    wait = WebDriverWait(driver, 10)
+    wait.until(EC.element_to_be_clickable((By.XPATH, '//*[@id="search-app"]/div/div[1]/div[2]/div[1]/div[2]/div/ul/li[7]/span'))).click()
+    #driver.find_element(By.XPATH, '//*[@id="search-app"]/div/div[1]/div[2]/div[1]/div[2]/div/ul/li[7]/span').click()
     time.sleep(1.5)
 
     links = []
@@ -83,10 +93,9 @@ def get_product_links(driver):
         # scroll down for new elements to appear
         if (keep_scrolling):
             driver.find_element(By.TAG_NAME, 'body').send_keys(Keys.PAGE_DOWN)
-            time.sleep(3)
-                        
+            time.sleep(random.uniform(1.1, 1.5))
 
-    return [links, driver]
+    return links, driver
 
 # this functions gets to the each product's page and scrapes the data of each of them
 def get_product_data(product_links, driver): # , driver
@@ -96,26 +105,29 @@ def get_product_data(product_links, driver): # , driver
 
     random.shuffle(product_links)
 
-    os.mkdir('Product_Photos')
+    os.mkdir('Output')
+    os.mkdir('Output\\Product_Photos')
 
     for link in product_links:
         # random wait for undetectability
         if((product_id + 1) % 20 == 0):
-            wait = wait = random.uniform(8, 15)
-        else:
-            wait = random.uniform(2, 4)  
-        time.sleep(wait)
+            wait = wait = random.uniform(10, 15)
+        # else:
+        #     wait = random.uniform(2, 4)  
+        # time.sleep(wait)
 
+        # get to the product page
         driver.get(link)
-        time.sleep(2)
 
         # already done in first function, delete after testing
-        driver.find_element(By.XPATH, '//*[@id="onetrust-accept-btn-handler"]').click()
-        time.sleep(3)
+        #driver.find_element(By.XPATH, '//*[@id="onetrust-accept-btn-handler"]').click()
+        #time.sleep(3)
 
         product = {'id': product_id}
 
-        # num_q, num_fav, prod_title, price, seller_info, photos
+        # num questions, num favs, prod title, price
+        wait = WebDriverWait(driver, 10)
+        wait.until(EC.visibility_of_element_located((By.CLASS_NAME, 'pr-new-br')))
         h1 = driver.find_element(By.CLASS_NAME, 'pr-new-br')
         product['title'] = h1.find_element(By.XPATH, './/a').get_attribute('innerHTML') + " " + h1.find_element(By.XPATH, './/span').get_attribute('innerHTML')
         
@@ -134,15 +146,15 @@ def get_product_data(product_links, driver): # , driver
             'sellerRating': float(seller_rating)
         }
 
-        # product photos
+        # product photos uploaded by the seller are scraped here
         next_button = driver.find_element(By.CLASS_NAME, 'gallery-icon-container.right')
         image_parent = driver.find_element(By.CLASS_NAME, 'base-product-image')
 
         image_sources = []
         image_id = 0
 
-        os.mkdir(f'Product_Photos\\product_{product_id}')
-        os.mkdir(f'Product_Photos\\product_{product_id}\\Seller_Photos')
+        os.mkdir(f'Output\\Product_Photos\\product_{product_id}')
+        os.mkdir(f'Output\\Product_Photos\\product_{product_id}\\Seller_Photos')
 
         product['photos'] = []
 
@@ -150,7 +162,7 @@ def get_product_data(product_links, driver): # , driver
         actions.move_to_element(next_button).perform()
 
         while (True):
-            time.sleep(random.uniform(0.3, 0.5))
+            time.sleep(random.uniform(0.2, 0.4))
             # if it's a video then pass this element
             if (image_parent.find_element(By.XPATH, './/div').get_attribute('class') != 'gallery-video-container'):
                 # terminates the loop if it comes the the first photo again
@@ -160,7 +172,7 @@ def get_product_data(product_links, driver): # , driver
 
                 image_sources.append(src)
 
-                path = f"Product_Photos\\product_{product_id}\\Seller_Photos\\image_{image_id}.jpg"
+                path = f"Output\\Product_Photos\\product_{product_id}\\Seller_Photos\\image_{image_id}.jpg"
                 with open(path, 'wb') as f:
                     img = requests.get(src)
                     f.write(img.content)
@@ -171,12 +183,12 @@ def get_product_data(product_links, driver): # , driver
 
             next_button.click()
         
-        # overall_rating, num_each_rating, num_comments
-        # 5 and 1 star comments' content, thumbs_up, photos (max 100 from each rating)
+        # comment data is scraped below
+        ###############################
 
         # go to reviews page
         driver.find_element(By.CLASS_NAME, 'rvw-cnt-tx').click()
-        time.sleep(random.uniform(2.5, 3.5))
+        time.sleep(random.uniform(1.5, 2))
 
         product['overallRating'] = float(driver.find_element(By.CLASS_NAME, 'ps-ratings__count-text').get_attribute('innerHTML'))
         num_comments = driver.find_element(By.XPATH,
@@ -184,6 +196,7 @@ def get_product_data(product_links, driver): # , driver
         product['numberOfComments'] = int(num_comments[:num_comments.find(' ')])
         
         stars = driver.find_elements(By.CLASS_NAME, 'ps-stars__content')
+        stars = stars[::-1]
 
         product['numberOfRatings'] = {}
 
@@ -196,7 +209,8 @@ def get_product_data(product_links, driver): # , driver
                 '5StarComments': {}
             }
         
-        os.mkdir(f'Product_Photos\\product_{product_id}\\Comment_Photos')
+        # make directory for comment photos
+        os.mkdir(f'Output\\Product_Photos\\product_{product_id}\\Comment_Photos')
 
         comment_id = 0
         for i in [0, 4]:
@@ -205,13 +219,13 @@ def get_product_data(product_links, driver): # , driver
             actions = ActionChains(driver=driver)
 
             driver.execute_script("arguments[0].click();", stars[i])
+            time.sleep(random.uniform(1, 1.7))
 
-            time.sleep(2)
+            wait = WebDriverWait(driver, 10)
+            wait.until(EC.visibility_of_element_located((By.CLASS_NAME, 'comment')))
 
             keep_scrolling = True
-
             while keep_scrolling:
-
                 batch = driver.find_elements(By.CLASS_NAME, 'comment')
 
                 if (len(batch) > len(comments)):
@@ -228,7 +242,7 @@ def get_product_data(product_links, driver): # , driver
                         except NoSuchElementException:
                             content = element.find_element(By.CLASS_NAME, 'comment-text').find_element(By.TAG_NAME, 'p').get_attribute('innerHTML')
 
-                        # save the content
+                        # save the comment text
                         comments.append(content)
                         comment['content'] = content
 
@@ -240,70 +254,83 @@ def get_product_data(product_links, driver): # , driver
                         small_images = element.find_elements(By.CLASS_NAME, 'item.review-image')
 
                         if (len(small_images) > 0):
-                            os.mkdir(f'Product_Photos\\product_{product_id}\\Comment_Photos\\comment_{comment_id}')
+                            os.mkdir(f'Output\\Product_Photos\\product_{product_id}\\Comment_Photos\\comment_{comment_id}')
                             comment['photos'] = []
 
                             actions.move_to_element(small_images[0]).click().perform()
-                            time.sleep(1)
+                            time.sleep(random.uniform(0.8, 1))
 
                             for j in range(len(small_images)):
                                 image_parent = driver.find_element(By.CLASS_NAME, 'react-transform-component.transform-component-module_content__uCDPE ')
                                 next_button = driver.find_element(By.CLASS_NAME, 'arrow.next')
                                 src = image_parent.find_element(By.XPATH, './/img').get_attribute('src')
 
-                                comment_photo_path = f'Product_Photos\\product_{product_id}\\Comment_Photos\\comment_{comment_id}\\image_{j}.jpg'
+                                comment_photo_path = f'Output\\Product_Photos\\product_{product_id}\\Comment_Photos\\comment_{comment_id}\\image_{j}.jpg'
                                 with open(comment_photo_path, 'wb') as f:
                                     img = requests.get(src)
                                     f.write(img.content)
                                 
                                 comment['photos'].append(comment_photo_path)
 
+                                # if there are more photos from this comment, click next otherwise close the photo displayer
                                 if (j != len(small_images)-1):
                                     actions.move_to_element(next_button).click().perform()
-                                    time.sleep(random.uniform(0.5, 0.9))
+                                    time.sleep(random.uniform(0.3, 0.6))
                                 else:
                                     driver.find_element(By.CLASS_NAME, 'ty-modal-content.ty-relative.modal-class').find_element(By.TAG_NAME, 'a').click()
-                                    time.sleep(0.3)
+                                    time.sleep(random.uniform(0.1, 0.15))
                         
                         product['comments'][f'{i+1}StarComments'][f'comment_{comment_id}'] = comment
                         comment_id += 1
 
-                        if (len(comments) == product['numberOfRatings'][f'{i+1}-star'] or len(comments) == 15):
+                        # if it reached to a certain number of comments stop scrolling
+                        if (len(comments) == product['numberOfRatings'][f'{i+1}-star'] or len(comments) == 10):
                             keep_scrolling = False
-                            print('yo')
                             break
                 
                 # keep scrolling for new comments to appear
                 if (keep_scrolling):
                     driver.find_element(By.TAG_NAME, 'body').send_keys(Keys.PAGE_DOWN)
-                    time.sleep(2)
+                    time.sleep(1.5)
 
             # switch between filtering for 1-star and 5-star comments
             driver.execute_script("arguments[0].click();", stars[i])
+            time.sleep(random.uniform(0.8, 1.1))
 
-            time.sleep(1)
-
+        # after scraping this particular product, add the dict to the list and increase the product_id for next prod
         product_data.append(product)
         product_id += 1
-
-        with open('data.json', 'w', encoding='utf-8') as file:
-            json.dump(product_data[0], file, ensure_ascii=False)
 
     return product_data
 
 # this function outputs data to a .jsonl file
 def to_jsonl(data):
-    file = open('data.jsonl', 'w', encoding='utf-8')
+    file = open('Output\\data.jsonl', 'w', encoding='utf-8')
     for product in data:
-        json.dump(data[0], file, ensure_ascii=False)
+        json.dump(product, file, ensure_ascii=False)
+        file.write('\n')
 
+    file.close()
     return
 
-service = Service(executable_path='chromedriver.exe')
-driver = webdriver.Chrome(service=service)
+# test
+#########################################
+# service = Service(executable_path='chromedriver.exe')
+# driver = webdriver.Chrome(service=service)
 
-links = ['https://www.trendyol.com/huawei/matebook-d15-i5-1155g7-islemci-8gb-ram-512gb-ssd-15-6-inc-win-11-laptop-mistik-gumus-p-654281247?boutiqueId=61&merchantId=514600']
+# links = ['https://www.trendyol.com/huawei/matebook-d15-i5-1155g7-islemci-8gb-ram-512gb-ssd-15-6-inc-win-11-laptop-mistik-gumus-p-654281247?boutiqueId=61&merchantId=514600']
 
-scraped_data = get_product_data(links, driver)
+# scraped_data = get_product_data(links, driver)
+
+# to_jsonl(scraped_data)
+
+# execute the functions
+#########################################
+
+driver = get_to_the_page()
+
+links, driver = get_product_links(driver)
+
+scraped_data = get_product_data(links[:10], driver)
 
 to_jsonl(scraped_data)
