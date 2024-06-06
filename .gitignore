@@ -1,4 +1,4 @@
 /venv
-/Product_Photos
+/Output
 chromedriver.exe
-data.json
+data.jsonl
