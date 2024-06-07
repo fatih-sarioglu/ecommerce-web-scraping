@@ -120,18 +120,14 @@ def get_product_data(product_links, driver): # , driver
 
     for link in product_links:
         # random wait for undetectability
-        if((product_id + 1) % 20 == 0):
-            wait = wait = random.uniform(10, 15)
+        if((product_id + 1) % 8 == 0):
+            wait = wait = random.uniform(14, 22)
         # else:
         #     wait = random.uniform(2, 4)  
         # time.sleep(wait)
 
         # get to the product page
         driver.get(link)
-
-        # already done in first function, delete after testing
-        #driver.find_element(By.XPATH, '//*[@id="onetrust-accept-btn-handler"]').click()
-        #time.sleep(3)
 
         product = {'id': product_id}
 
