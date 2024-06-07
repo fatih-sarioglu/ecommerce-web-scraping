@@ -18,19 +18,14 @@ import os
 # you make the testing True and you can adjust the COMMENTS_UPPER_LIMIT and PRODUCTS_UPPER_LIMIT to a small number
 # the code will scrape 10 products' data and their 10 comments
 # if you want to run on release mode (as it is asked in the case study), you just make the testing False
-testing = True
-COMMENTS_UPPER_LIMIT = 10
-PRODUCTS_UPPER_LIMIT = 10
-
-# service = Service(executable_path='chromedriver.exe')
-# driver = webdriver.Chrome(service=service)
+testing = False
+COMMENTS_UPPER_LIMIT = 3
+PRODUCTS_UPPER_LIMIT = 3
 
 # this function goes to trendyol.com and navigates to the laptops page and returns the driver to be used in another function
 def get_to_the_page():
-
     url = "https://www.trendyol.com"
 
-    # create driver
     service = Service(executable_path='chromedriver.exe')
     driver = webdriver.Chrome(service=service)
 
@@ -38,11 +33,10 @@ def get_to_the_page():
     driver.get(url)
     #time.sleep(2)
 
-    wait = WebDriverWait(driver, 10)
-    wait.until(EC.element_to_be_clickable((By.XPATH, '//*[@id="onetrust-accept-btn-handler"]'))).click()
+    wait = WebDriverWait(driver, 30)
 
     # accept the cookies
-    #driver.find_element(By.XPATH, '//*[@id="onetrust-accept-btn-handler"]').click()
+    wait.until(EC.element_to_be_clickable((By.XPATH, '//*[@id="onetrust-accept-btn-handler"]'))).click()
     time.sleep(2)
 
     # hover over electronics tab and click computers
@@ -51,30 +45,22 @@ def get_to_the_page():
 
     actions = ActionChains(driver=driver)
     actions.move_to_element(electronics).perform()
-    time.sleep(0.2)
+    time.sleep(random.uniform(1, 1.5))
     actions.move_to_element(computers).click().perform()
-    # time.sleep(2)
 
     # click laptops option
-    wait = WebDriverWait(driver, 10)
+    wait = WebDriverWait(driver, 30)
     wait.until(EC.element_to_be_clickable((By.XPATH, '//*[@id="sticky-aggregations"]/div/div[1]/div[2]/div/div/div[1]/div/a'))).click()
-
-    # click laptops option
-    # driver.find_element(By.XPATH, '//*[@id="sticky-aggregations"]/div/div[1]/div[2]/div/div/div[1]/div/a').click()
-    # time.sleep(2)
 
     return driver
 
 # this functions gets links of all the laptops that have more than 100 reviews and puts them into a list 
 def get_product_links(driver):
     # start with sorting products
-    wait = WebDriverWait(driver, 10)
+    wait = WebDriverWait(driver, 30)
     wait.until(EC.element_to_be_clickable((By.XPATH, '//*[@id="search-app"]/div/div[1]/div[2]/div[1]/div[2]/div/div/div'))).click()
-    #driver.find_element(By.XPATH, '//*[@id="search-app"]/div/div[1]/div[2]/div[1]/div[2]/div/div/div').click()
-    #time.sleep(0.1)
-    wait = WebDriverWait(driver, 10)
+    wait = WebDriverWait(driver, 30)
     wait.until(EC.element_to_be_clickable((By.XPATH, '//*[@id="search-app"]/div/div[1]/div[2]/div[1]/div[2]/div/ul/li[7]/span'))).click()
-    #driver.find_element(By.XPATH, '//*[@id="search-app"]/div/div[1]/div[2]/div[1]/div[2]/div/ul/li[7]/span').click()
     time.sleep(1.5)
 
     links = []
@@ -90,7 +76,7 @@ def get_product_links(driver):
 
             for element in batch[len(links):]:
                 rating_count = int(element.find_element(By.CLASS_NAME, 'ratingCount').get_attribute('innerHTML')[1:-1])
-                print(rating_count)
+                
                 if (rating_count > 100):
                     # if the elements has more than 100 reviews, add it to the links
                     links.append(element.find_element(By.XPATH, './/div[1]/a').get_attribute('href'))
@@ -119,12 +105,10 @@ def get_product_data(product_links, driver): # , driver
     os.mkdir('Output\\Product_Photos')
 
     for link in product_links:
+        print(link)
         # random wait for undetectability
         if((product_id + 1) % 8 == 0):
             wait = wait = random.uniform(14, 22)
-        # else:
-        #     wait = random.uniform(2, 4)  
-        # time.sleep(wait)
 
         # get to the product page
         driver.get(link)
@@ -132,7 +116,7 @@ def get_product_data(product_links, driver): # , driver
         product = {'id': product_id}
 
         # num questions, num favs, prod title, price
-        wait = WebDriverWait(driver, 10)
+        wait = WebDriverWait(driver, 30)
         wait.until(EC.visibility_of_element_located((By.CLASS_NAME, 'pr-new-br')))
         h1 = driver.find_element(By.CLASS_NAME, 'pr-new-br')
         product['title'] = h1.find_element(By.XPATH, './/a').get_attribute('innerHTML') + " " + h1.find_element(By.XPATH, './/span').get_attribute('innerHTML')
@@ -140,7 +124,8 @@ def get_product_data(product_links, driver): # , driver
         product['numberOfQuestions'] = int(driver.find_element(By.CLASS_NAME, 'answered-questions-count').get_attribute('innerHTML')) # typecast to int
         product['numberOfFavs'] = int(driver.find_element(By.CLASS_NAME, 'favorite-count').get_attribute('innerHTML')) # typecast to int
         price = driver.find_element(By.CLASS_NAME, 'product-price-container').find_element(By.CLASS_NAME, 'prc-dsc').get_attribute('innerHTML')[:-3]
-        product['price'] = int(price.replace('.', ''))
+        price = price.replace('.', '')
+        product['price'] = float(price.replace(',', '.'))
 
         # seller info
         seller_info_parent = driver.find_element(By.CLASS_NAME, 'widget-title.product-seller-line')
@@ -219,15 +204,17 @@ def get_product_data(product_links, driver): # , driver
         os.mkdir(f'Output\\Product_Photos\\product_{product_id}\\Comment_Photos')
 
         comment_id = 0
-        for i in [0, 4]:
+        one_star_idx, five_stars_idx = 0, (len(stars)-1)
+        for i in [one_star_idx, five_stars_idx]:
             comments = []
 
             actions = ActionChains(driver=driver)
+            wait = WebDriverWait(driver, 30)
+            wait.until(EC.element_to_be_clickable((stars[i]))).click()
 
-            driver.execute_script("arguments[0].click();", stars[i])
+            #driver.execute_script("arguments[0].click();", stars[i])
             time.sleep(random.uniform(1, 1.7))
 
-            wait = WebDriverWait(driver, 10)
             wait.until(EC.visibility_of_element_located((By.CLASS_NAME, 'comment')))
 
             keep_scrolling = True
@@ -264,11 +251,13 @@ def get_product_data(product_links, driver): # , driver
                             comment['photos'] = []
 
                             actions.move_to_element(small_images[0]).click().perform()
-                            time.sleep(random.uniform(0.8, 1))
 
                             for j in range(len(small_images)):
-                                image_parent = driver.find_element(By.CLASS_NAME, 'react-transform-component.transform-component-module_content__uCDPE ')
+                                wait = WebDriverWait(driver, 30)
+                                wait.until(EC.visibility_of_element_located((By.CLASS_NAME, 'react-transform-component.transform-component-module_content__uCDPE')))
+                                image_parent = driver.find_element(By.CLASS_NAME, 'react-transform-component.transform-component-module_content__uCDPE')
                                 next_button = driver.find_element(By.CLASS_NAME, 'arrow.next')
+                                #wait.until(EC.visibility_of_element_located, (()))
                                 src = image_parent.find_element(By.XPATH, './/img').get_attribute('src')
 
                                 comment_photo_path = f'Output\\Product_Photos\\product_{product_id}\\Comment_Photos\\comment_{comment_id}\\image_{j}.jpg'
@@ -286,7 +275,10 @@ def get_product_data(product_links, driver): # , driver
                                     driver.find_element(By.CLASS_NAME, 'ty-modal-content.ty-relative.modal-class').find_element(By.TAG_NAME, 'a').click()
                                     time.sleep(random.uniform(0.1, 0.15))
                         
-                        product['comments'][f'{i+1}StarComments'][f'comment_{comment_id}'] = comment
+                        if (i == one_star_idx):
+                            product['comments']['1StarComments'][f'comment_{comment_id}'] = comment
+                        else:
+                            product['comments']['5StarComments'][f'comment_{comment_id}'] = comment
                         comment_id += 1
 
                         # if it reached to a certain number of comments stop scrolling
@@ -320,24 +312,13 @@ def to_jsonl(data):
     file.close()
     return
 
-# test
-#########################################
-# service = Service(executable_path='chromedriver.exe')
-# driver = webdriver.Chrome(service=service)
-
-# links = ['https://www.trendyol.com/huawei/matebook-d15-i5-1155g7-islemci-8gb-ram-512gb-ssd-15-6-inc-win-11-laptop-mistik-gumus-p-654281247?boutiqueId=61&merchantId=514600']
-
-# scraped_data = get_product_data(links, driver)
-
-# to_jsonl(scraped_data)
-
 # execute the functions
 #########################################
 driver = get_to_the_page()
 
 links, driver = get_product_links(driver)
 
-# in the test version, you run for less amount of products and comments so it takes less time
+# in testing, scrape less products
 scraped_data = None
 if (testing):
     scraped_data = get_product_data(links[:PRODUCTS_UPPER_LIMIT], driver)
