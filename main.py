@@ -12,6 +12,16 @@ import time
 import json
 import os
 
+# below are for switching between test and release modes
+########################################################
+# if you are testing and don't want the code run for too long,
+# you make the testing True and you can adjust the COMMENTS_UPPER_LIMIT and PRODUCTS_UPPER_LIMIT to a small number
+# the code will scrape 10 products' data and their 10 comments
+# if you want to run on release mode (as it is asked in the case study), you just make the testing False
+testing = True
+COMMENTS_UPPER_LIMIT = 10
+PRODUCTS_UPPER_LIMIT = 10
+
 # service = Service(executable_path='chromedriver.exe')
 # driver = webdriver.Chrome(service=service)
 
@@ -284,7 +294,8 @@ def get_product_data(product_links, driver): # , driver
                         comment_id += 1
 
                         # if it reached to a certain number of comments stop scrolling
-                        if (len(comments) == product['numberOfRatings'][f'{i+1}-star'] or len(comments) == 10):
+                        limit = COMMENTS_UPPER_LIMIT if testing else 100
+                        if (len(comments) == product['numberOfRatings'][f'{i+1}-star'] or len(comments) == limit):
                             keep_scrolling = False
                             break
                 
@@ -326,11 +337,15 @@ def to_jsonl(data):
 
 # execute the functions
 #########################################
-
 driver = get_to_the_page()
 
 links, driver = get_product_links(driver)
 
-scraped_data = get_product_data(links[:10], driver)
+# in the test version, you run for less amount of products and comments so it takes less time
+scraped_data = None
+if (testing):
+    scraped_data = get_product_data(links[:PRODUCTS_UPPER_LIMIT], driver)
+else:
+    scraped_data = get_product_data(links, driver)
 
 to_jsonl(scraped_data)
