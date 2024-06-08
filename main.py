@@ -100,9 +100,6 @@ def get_product_links(driver):
             time.sleep(random.uniform(1.1, 1.5))
 
     random.shuffle(links)
-    with open('product_links.txt', 'w', encoding='utf-8') as f:
-        for link in links:
-            f.write(link + ',')
 
     return links, driver
 
