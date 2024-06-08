@@ -12,15 +12,15 @@ import time
 import json
 import os
 
-# below are for switching between test and release modes
+# below part is for switching between test and release modes
 ########################################################
-# if you are testing and don't want the code run for too long,
+# if you are testing and don't want the code to run for too long,
 # you make the testing True and you can adjust the COMMENTS_UPPER_LIMIT and PRODUCTS_UPPER_LIMIT to a small number
-# the code will scrape 10 products' data and their 10 comments
+# the code will scrape 10 products' data and 10 comments of each of them if you set these values to 10
 # if you want to run on release mode (as it is asked in the case study: 100 products and 100 comments), you just make the testing False
-testing = False
-PRODUCTS_UPPER_LIMIT = 5
-COMMENTS_UPPER_LIMIT = 3
+testing = True
+PRODUCTS_UPPER_LIMIT = 3
+COMMENTS_UPPER_LIMIT = 10
 
 # this function goes to trendyol.com and navigates to the laptops page and returns the driver to be used in another function
 def get_to_the_page():
@@ -37,7 +37,6 @@ def get_to_the_page():
     wait.until(EC.element_to_be_clickable((By.XPATH, '//*[@id="onetrust-accept-btn-handler"]')))
     accept_button = driver.find_element(By.XPATH, '//*[@id="onetrust-accept-btn-handler"]')
     driver.execute_script("arguments[0].click();", accept_button)
-    #time.sleep(2)
 
     # hover over electronics tab and click computers
     wait.until(EC.visibility_of_element_located((By.XPATH, '//*[@id="navigation-wrapper"]/nav/ul/li[8]/a')))
@@ -77,7 +76,7 @@ def get_product_links(driver):
         wait.until(EC.presence_of_element_located((By.CLASS_NAME, 'p-card-wrppr.with-campaign-view')))
         batch = driver.find_elements(By.CLASS_NAME, 'p-card-wrppr.with-campaign-view')
 
-        # this condition checks if new elements appeared after scrolling down
+        # this if block checks if new elements appeared after scrolling down
         if (len(batch) > len(links)):
 
             for element in batch[len(links):]:
@@ -108,22 +107,22 @@ def get_product_links(driver):
     return links, driver
 
 # this functions gets to the each product's page and scrapes the data of each of them
-def get_product_data(product_links, driver): # , driver
-
+def get_product_data(product_links, driver):
     wait = WebDriverWait(driver, 30)
 
-    #product_data = []
+    # every product will have an id number
     product_id = 0
 
-    #random.shuffle(product_links)
+    # shuffle the list
+    random.shuffle(product_links)
 
     os.mkdir('Output')
     os.mkdir('Output\\Product_Photos')
 
     for link in product_links:
+        # to export the data
         file = open('Output\\data.jsonl', 'a', encoding='utf-8')
 
-        print(link)
         # random wait for undetectability
         if((product_id + 1) % 8 == 0):
             time.sleep(random.uniform(14, 22))
@@ -189,7 +188,6 @@ def get_product_data(product_links, driver): # , driver
 
                 image_id += 1
 
-            #next_button.click()
             wait.until(EC.element_to_be_clickable((next_button)))
             driver.execute_script("arguments[0].click();", next_button)
         
@@ -197,7 +195,6 @@ def get_product_data(product_links, driver): # , driver
         ###############################
 
         # go to reviews page
-        # driver.find_element(By.CLASS_NAME, 'rvw-cnt-tx').click()
         wait.until(EC.element_to_be_clickable((By.CLASS_NAME, 'rvw-cnt-tx')))
         reviews = driver.find_element(By.CLASS_NAME, 'rvw-cnt-tx')
         driver.execute_script("arguments[0].click();", reviews)
@@ -221,7 +218,7 @@ def get_product_data(product_links, driver): # , driver
             decrease += 2
         product['numberOfRatings']['1-star'] = int(stars[0].find_element(By.XPATH, './/span').get_attribute('innerHTML')[1:-1])
 
-        # get the comment data for 1 and 5-star comments
+        # comment data for 1 and 5-star comments is scraped below
         product['comments'] = {
                 '1StarComments': {},
                 '5StarComments': {}
@@ -235,7 +232,6 @@ def get_product_data(product_links, driver): # , driver
         for i in [one_star_idx, five_stars_idx]:
             comments = []
 
-            #actions = ActionChains(driver=driver)
             wait.until(EC.element_to_be_clickable((stars[i])))
             driver.execute_script("arguments[0].click();", stars[i])
             time.sleep(random.uniform(1, 1.7))
@@ -275,9 +271,7 @@ def get_product_data(product_links, driver): # , driver
                             os.mkdir(f'Output\\Product_Photos\\product_{product_id}\\Comment_Photos\\comment_{comment_id}')
                             comment['photos'] = []
 
-                            #actions.move_to_element(small_images[0]).click().perform()
                             driver.execute_script("arguments[0].click();", small_images[0])
-                            
 
                             for j in range(len(small_images)):
                                 time.sleep(random.uniform(1, 1.5))
@@ -286,6 +280,7 @@ def get_product_data(product_links, driver): # , driver
                                 image = image_parent.find_element(By.XPATH, './/img')
                                 src = image.get_attribute('src')
 
+                                # save the image
                                 comment_photo_path = f'Product_Photos\\product_{product_id}\\Comment_Photos\\comment_{comment_id}\\image_{j}.jpg'
                                 with open(f'Output\\{comment_photo_path}', 'wb') as f:
                                     img = requests.get(src)
@@ -307,7 +302,6 @@ def get_product_data(product_links, driver): # , driver
                         
                         # if it reached to a certain number of comments stop scrolling
                         limit = COMMENTS_UPPER_LIMIT if testing else 100
-
                         if (i == one_star_idx):
                             product['comments']['1StarComments'][f'comment_{comment_id}'] = comment
                             comment_id += 1
@@ -331,27 +325,18 @@ def get_product_data(product_links, driver): # , driver
             time.sleep(random.uniform(0.8, 1.1))
 
         # after scraping that particular product, add the dict to the list and increase the product_id for next prod
-        #product_data.append(product)
         json.dump(product, file, ensure_ascii=False)
         file.write('\n')
         file.close()
         product_id += 1
 
-    return #product_data
+    return
 
 # execute the functions
 #########################################
 driver = get_to_the_page()
-links = None
 
-# if product links are already scraped, do not scrape again
-# read the links from the file and move on with scraping product data
-if (os.path.isfile('product_links.txt')):
-    with open('product_links.txt', 'r', encoding='utf-8') as file:
-        content = file.read()
-        links = content.split(sep=',')
-else:
-    links, driver = get_product_links(driver)
+links, driver = get_product_links(driver)
 
 # in testing, scrape less products
 if (testing):
