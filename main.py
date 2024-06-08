@@ -17,10 +17,10 @@ import os
 # if you are testing and don't want the code run for too long,
 # you make the testing True and you can adjust the COMMENTS_UPPER_LIMIT and PRODUCTS_UPPER_LIMIT to a small number
 # the code will scrape 10 products' data and their 10 comments
-# if you want to run on release mode (as it is asked in the case study), you just make the testing False
-testing = True
+# if you want to run on release mode (as it is asked in the case study: 100 products and 100 comments), you just make the testing False
+testing = False
+PRODUCTS_UPPER_LIMIT = 5
 COMMENTS_UPPER_LIMIT = 3
-PRODUCTS_UPPER_LIMIT = 3
 
 # this function goes to trendyol.com and navigates to the laptops page and returns the driver to be used in another function
 def get_to_the_page():
@@ -50,7 +50,6 @@ def get_to_the_page():
     actions.move_to_element(computers).click().perform()
 
     # click laptops option
-    wait = WebDriverWait(driver, 30)
     wait.until(EC.element_to_be_clickable((By.XPATH, '//*[@id="sticky-aggregations"]/div/div[1]/div[2]/div/div/div[1]/div/a')))
     laptops = driver.find_element(By.XPATH, '//*[@id="sticky-aggregations"]/div/div[1]/div[2]/div/div/div[1]/div/a')
     driver.execute_script("arguments[0].click();", laptops)
@@ -111,6 +110,8 @@ def get_product_links(driver):
 # this functions gets to the each product's page and scrapes the data of each of them
 def get_product_data(product_links, driver): # , driver
 
+    wait = WebDriverWait(driver, 30)
+
     #product_data = []
     product_id = 0
 
@@ -125,7 +126,7 @@ def get_product_data(product_links, driver): # , driver
         print(link)
         # random wait for undetectability
         if((product_id + 1) % 8 == 0):
-            wait = wait = random.uniform(14, 22)
+            time.sleep(random.uniform(14, 22))
 
         # get to the product page
         driver.get(link)
@@ -133,7 +134,6 @@ def get_product_data(product_links, driver): # , driver
         product = {'id': product_id}
 
         # num questions, num favs, prod title, price
-        wait = WebDriverWait(driver, 30)
         wait.until(EC.presence_of_element_located((By.CLASS_NAME, 'pr-new-br')))
         h1 = driver.find_element(By.CLASS_NAME, 'pr-new-br')
         product['title'] = h1.find_element(By.XPATH, './/a').get_attribute('innerHTML') + " " + h1.find_element(By.XPATH, './/span').get_attribute('innerHTML')
@@ -236,7 +236,6 @@ def get_product_data(product_links, driver): # , driver
             comments = []
 
             #actions = ActionChains(driver=driver)
-            #wait = WebDriverWait(driver, 30)
             wait.until(EC.element_to_be_clickable((stars[i])))
             driver.execute_script("arguments[0].click();", stars[i])
             time.sleep(random.uniform(1, 1.7))
@@ -281,10 +280,9 @@ def get_product_data(product_links, driver): # , driver
                             
 
                             for j in range(len(small_images)):
-                                #wait = WebDriverWait(driver, 30)
+                                time.sleep(random.uniform(1, 1.5))
                                 wait.until(EC.presence_of_element_located((By.CLASS_NAME, 'react-transform-component.transform-component-module_content__uCDPE')))
                                 image_parent = driver.find_element(By.CLASS_NAME, 'react-transform-component.transform-component-module_content__uCDPE')
-                                next_button = driver.find_element(By.CLASS_NAME, 'arrow.next')
                                 image = image_parent.find_element(By.XPATH, './/img')
                                 src = image.get_attribute('src')
 
@@ -295,11 +293,12 @@ def get_product_data(product_links, driver): # , driver
                                 
                                 comment['photos'].append(comment_photo_path)
 
+                                next_button = driver.find_element(By.CLASS_NAME, 'arrow.next')
                                 # if there are more photos from this comment, click next otherwise close the photo displayer
                                 if (j != len(small_images)-1):
                                     wait.until(EC.element_to_be_clickable((next_button)))
-                                    actions.move_to_element(next_button).click().perform()
-                                    time.sleep(random.uniform(0.3, 0.6))
+                                    driver.execute_script("arguments[0].click();", next_button)
+                                    time.sleep(random.uniform(0.1, 0.3))
                                 else:
                                     close_photo = driver.find_element(By.CLASS_NAME, 'ty-modal-content.ty-relative.modal-class').find_element(By.TAG_NAME, 'a')
                                     wait.until(EC.element_to_be_clickable(close_photo))
