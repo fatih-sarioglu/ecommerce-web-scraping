@@ -1,4 +1,4 @@
-# Codeway Case Study - Trendyol Web Scraping
+# Trendyol Web Scraping
 
 ## 1. Prepare the environment:
 I sent you the project with the environment and required chromdriver.exe program in the zip file. I also uploaded the project on my GitHub if you want to check out. Below are instructions to prepare the environment to run the project for both of the ways respectively:
